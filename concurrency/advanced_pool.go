@@ -3,6 +3,7 @@ package concurrency
 import (
 	"context"
 	"errors"
+	"sync"
 )
 
 // ErrPoolClosed is returned from AdvancedPool.Submit when the pool is closed
@@ -30,11 +31,89 @@ type AdvancedPool interface {
 	Close(context.Context) error
 }
 
+type DefaultAdvancedPool struct {
+	maxSlots      int
+	maxConcurrent int
+	pendingTasks  chan func(context.Context)
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	taskGroup     sync.WaitGroup
+}
+
 // NewAdvancedPool creates a new AdvancedPool. maxSlots is the maximum total
 // submitted tasks, running or waiting, that can be submitted before Submit
 // blocks waiting for more room. maxConcurrent is the maximum tasks that can be
 // running at any one time. An error is returned if maxSlots is less than
 // maxConcurrent or if either value is not greater than zero.
+
 func NewAdvancedPool(maxSlots, maxConcurrent int) (AdvancedPool, error) {
-	panic("TODO")
+	poolContext, poolContextCancelFunc := context.WithCancel(context.Background())
+
+	pool := &DefaultAdvancedPool{
+		maxSlots:      maxSlots,
+		maxConcurrent: maxConcurrent,
+		pendingTasks:  make(chan func(context.Context), maxSlots-maxConcurrent),
+		ctx:           poolContext,
+		ctxCancel:     poolContextCancelFunc,
+	}
+
+	pool.taskGroup.Add(pool.maxConcurrent)
+
+	for i := 0; i < pool.maxConcurrent; i++ {
+		go func() {
+			for t := range pool.pendingTasks {
+				t(pool.ctx)
+			}
+			pool.taskGroup.Done()
+		}()
+	}
+
+	return pool, nil
+}
+
+func (pool *DefaultAdvancedPool) Submit(ctx context.Context, task func(context.Context)) error {
+	select {
+	case <-pool.ctx.Done():
+		return ErrPoolClosed
+
+	case <-ctx.Done():
+		return ctx.Err()
+
+	case pool.pendingTasks <- task:
+	}
+
+	return nil
+}
+
+// Close closes the pool and waits until all submitted tasks have completed
+// before returning.
+// - If the pool is already closed, ErrPoolClosed is returned.
+// - If the given context is closed before all tasks have finished, the context
+//   error is returned.
+// - Otherwise, no error is returned.
+
+func (pool *DefaultAdvancedPool) Close(ctx context.Context) error {
+	select {
+	case <-pool.ctx.Done():
+		return ErrPoolClosed
+	default:
+		pool.ctxCancel()
+	}
+
+	tasksFinished := make(chan struct{})
+
+	go func() {
+		close(pool.pendingTasks)
+
+		pool.taskGroup.Wait()
+
+		tasksFinished <- struct{}{}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-tasksFinished:
+		return nil
+	}
 }

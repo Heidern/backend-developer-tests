@@ -11,9 +11,25 @@ type SimplePool interface {
 	Submit(func())
 }
 
+type DefaultSimplePool struct {
+	maxConcurrent     int
+	countingSemaphore chan struct{}
+}
+
 // NewSimplePool creates a new SimplePool that only allows the given maximum
 // concurrent tasks to run at any one time. maxConcurrent must be greater than
 // zero.
 func NewSimplePool(maxConcurrent int) SimplePool {
-	panic("TODO")
+	return &DefaultSimplePool{
+		maxConcurrent:     maxConcurrent,
+		countingSemaphore: make(chan struct{}, maxConcurrent),
+	}
+}
+
+func (pool *DefaultSimplePool) Submit(task func()) {
+	pool.countingSemaphore <- struct{}{}
+	go func() {
+		task()
+		<-pool.countingSemaphore
+	}()
 }
