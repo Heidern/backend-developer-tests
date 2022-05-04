@@ -13,21 +13,30 @@ import (
 //   `buzzAt` values.
 // - Return the original number if is is not divisible by either the `fizzAt` or
 //   the `buzzAt` values.
-func FizzBuzz(total, fizzAt, buzzAt int64) []string {
+func FizzBuzz(total, fizzAt, buzzAt int) []string {
+	if total <= 0 {
+		return []string{}
+	}
+
 	result := make([]string, total)
 
-	for i := int64(1); i <= total; i++ {
-		if !(i%fizzAt == 0) && !(i%buzzAt == 0) {
-			result[i-1] = strconv.FormatInt(i, 10)
-			continue
-		}
+	for i := 1; i <= total; i++ {
+		fizzed := false
 
-		if i%fizzAt == 0 {
+		if fizzAt != 0 && i%fizzAt == 0 {
 			result[i-1] = "Fizz"
+			fizzed = true
 		}
 
-		if i%buzzAt == 0 {
+		buzzed := false
+
+		if buzzAt != 0 && i%buzzAt == 0 {
 			result[i-1] += "Buzz"
+			buzzed = true
+		}
+
+		if !fizzed && !buzzed {
+			result[i-1] = strconv.FormatInt(int64(i), 10)
 		}
 	}
 

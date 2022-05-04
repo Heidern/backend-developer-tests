@@ -31,23 +31,29 @@ func main() {
 	}
 
 	// Convert argument values to numbers
-	total, err := strconv.ParseInt(totalArgument, 10, 32)
+	value, err := strconv.ParseInt(totalArgument, 10, 32)
 	if err != nil {
 		panic("The number of items to FizzBuzz should be an integer")
 	}
 
-	fizzAt, err := strconv.ParseInt(fizzAtArgument, 10, 32)
+	total := int(value)
+
+	value, err = strconv.ParseInt(fizzAtArgument, 10, 32)
 	if err != nil {
 		panic("The number to Fizz at should be an integer")
 	}
 
-	buzzAt, err := strconv.ParseInt(buzzAtArgument, 10, 32)
+	fizzAt := int(value)
+
+	value, err = strconv.ParseInt(buzzAtArgument, 10, 32)
 	if err != nil {
 		panic("The number to Buzz at should be an integer")
 	}
 
+	buzzAt := int(value)
+
 	// FizzBuzz the input and print the results
-	fmt.Println(fmt.Sprintf("FizzBuzzing %d number(s), fizzing at %d and buzzing at %d:", total, fizzAt, buzzAt))
+	fmt.Printf("FizzBuzzing %d number(s), fizzing at %d and buzzing at %d:\n", total, fizzAt, buzzAt)
 	for _, result := range fizzbuzz.FizzBuzz(total, fizzAt, buzzAt) {
 		fmt.Println(result)
 	}
